@@ -274,8 +274,9 @@ if [ ! -f "$CONFIG" ]; then
   mkdir -p "$(dirname "$CONFIG")"
   cat > "$CONFIG" << "CONFEOF"
 model:
-  provider: deepseek
+  provider: openai
   default: deepseek-v4-flash
+  base_url: https://api.deepseek.com/v1
   temperature: 0
 agent:
   max_turns: 90
@@ -295,7 +296,7 @@ RUN printf '#!/command/with-contenv sh\nexec /opt/hermes/docker/stage2-hook.sh\n
         > /etc/cont-init.d/01-hermes-setup && \
     chmod +x /etc/cont-init.d/01-hermes-setup
 # ── Fix model to deepseek-v4-flash after migration (019 runs after 01, before 02) ──
-RUN printf '#!/command/with-contenv sh\nCONFIG="$HERMES_HOME/config.yaml"\nif [ -f "$CONFIG" ]; then\n  echo "[019-set-model] Setting model to deepseek-v4-flash"\n  sed -i "s/^  default:.*/  default: deepseek-v4-flash/" "$CONFIG"\n  sed -i "s/^  provider:.*/  provider: deepseek/" "$CONFIG"\n  if ! grep -q "base_url.*api.deepseek" "$CONFIG"; then\n    sed -i "/^model:/a\  base_url: https://api.deepseek.com/v1" "$CONFIG"\n    echo "[019-set-model] Added base_url for DeepSeek"\n  fi\nfi\n' > /etc/cont-init.d/019-set-model && chmod +x /etc/cont-init.d/019-set-model
+printf '#!/command/with-contenv sh\nCONFIG="$HERMES_HOME/config.yaml"\nif [ -f "$CONFIG" ]; then\n  echo "[019-set-model] Setting model to deepseek-v4-flash via openai provider"\n  sed -i "s/^  default:.*/  default: deepseek-v4-flash/" "$CONFIG"\n  sed -i "s/^  provider:.*/  provider: openai/" "$CONFIG"\n  if ! grep -q "base_url.*api.deepseek" "$CONFIG"; then\n    sed -i "/^model:/a\  base_url: https://api.deepseek.com/v1" "$CONFIG"\n    echo "[019-set-model] Added base_url for DeepSeek"\n  fi\nfi\n' > /etc/cont-init.d/019-set-model
 COPY --chmod=0755 docker/cont-init.d/015-supervise-perms /etc/cont-init.d/015-supervise-perms
 COPY --chmod=0755 docker/cont-init.d/02-reconcile-profiles /etc/cont-init.d/02-reconcile-profiles
 
