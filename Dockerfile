@@ -266,7 +266,7 @@ COPY docker/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 # slots from $HERMES_HOME/profiles/<name>/ after a container restart
 # (the /run/service/ scandir is tmpfs and wiped on restart). Phase 4.
 # ── Pre-configure default model provider from Railway env vars ──
-RUN cat > /etc/cont-init.d/00-preconfig << 'SCRIPT'
+RUN mkdir -p /etc/cont-init.d && cat > /etc/cont-init.d/00-preconfig << 'SCRIPT'
 #!/command/with-contenv sh
 CONFIG="$HERMES_HOME/config.yaml"
 if [ ! -f "$CONFIG" ]; then
@@ -291,10 +291,11 @@ fi
 SCRIPT
 RUN chmod +x /etc/cont-init.d/00-preconfig
 
-RUN mkdir -p /etc/cont-init.d && \
-    printf '#!/command/with-contenv sh\nexec /opt/hermes/docker/stage2-hook.sh\n' \
+RUN printf '#!/command/with-contenv sh\nexec /opt/hermes/docker/stage2-hook.sh\n' \
         > /etc/cont-init.d/01-hermes-setup && \
     chmod +x /etc/cont-init.d/01-hermes-setup
+# ── Fix model to deepseek-v4-flash after migration (019 runs after 01, before 02) ──
+RUN printf '#!/command/with-contenv sh\nCONFIG="$HERMES_HOME/config.yaml"\nif [ -f "$CONFIG" ]; then\n  echo "[019-set-model] Setting model to deepseek-v4-flash"\n  sed -i "s/^  default:.*/  default: deepseek-v4-flash/" "$CONFIG"\n  sed -i "s/^  provider:.*/  provider: deepseek/" "$CONFIG"\nfi\n' > /etc/cont-init.d/019-set-model && chmod +x /etc/cont-init.d/019-set-model
 COPY --chmod=0755 docker/cont-init.d/015-supervise-perms /etc/cont-init.d/015-supervise-perms
 COPY --chmod=0755 docker/cont-init.d/02-reconcile-profiles /etc/cont-init.d/02-reconcile-profiles
 
