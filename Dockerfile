@@ -265,6 +265,32 @@ COPY docker/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
 # 02-reconcile-profiles re-creates per-profile gateway s6 service
 # slots from $HERMES_HOME/profiles/<name>/ after a container restart
 # (the /run/service/ scandir is tmpfs and wiped on restart). Phase 4.
+# ── Pre-configure default model provider from Railway env vars ──
+RUN cat > /etc/cont-init.d/00-preconfig << 'SCRIPT'
+#!/command/with-contenv sh
+CONFIG="$HERMES_HOME/config.yaml"
+if [ ! -f "$CONFIG" ]; then
+  echo "Generating initial config.yaml with DeepSeek..."
+  mkdir -p "$(dirname "$CONFIG")"
+  cat > "$CONFIG" << "CONFEOF"
+model:
+  provider: deepseek
+  default: deepseek-v4-flash
+  temperature: 0
+agent:
+  max_turns: 90
+terminal:
+  backend: local
+  timeout: 180
+display:
+  tool_progress: true
+security:
+  redact_secrets: false
+CONFEOF
+fi
+SCRIPT
+RUN chmod +x /etc/cont-init.d/00-preconfig
+
 RUN mkdir -p /etc/cont-init.d && \
     printf '#!/command/with-contenv sh\nexec /opt/hermes/docker/stage2-hook.sh\n' \
         > /etc/cont-init.d/01-hermes-setup && \
